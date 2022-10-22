@@ -48,7 +48,7 @@ func (db *PostgresDB) AddBalance(id uint64, amount float32) error {
 			tx.Rollback()
 			return err
 		}
-		
+
 		return tx.Commit().Error
 
 	} else if err != nil {
@@ -98,6 +98,13 @@ func (db *PostgresDB) Reserve(userId, serviceId, orderId uint64, amount float32)
 		return err
 	}
 
+	user.Balance -= amount
+	err = tx.Save(&user).Error
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	order := models.Order{ID: orderId}
 
 	reserve := models.Reserve{
@@ -143,11 +150,12 @@ func (db *PostgresDB) Purchase(userId, serviceId, orderId uint64, amount float32
 	}
 
 	report := models.Report{
-		Service:     reserve.Service,
+		ServiceID:   reserve.ServiceID,
 		Amount:      reserve.Amount,
 		PurchasedAt: time.Now(),
 	}
 
+	tx.Clauses(clause.OnConflict{DoNothing: true})
 	err = tx.Create(&report).Error
 	if err != nil {
 		tx.Rollback()
