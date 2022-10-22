@@ -123,3 +123,45 @@ func (h *Handler) AddServices(c *fiber.Ctx) error {
 
 	return c.SendStatus(fiber.StatusOK)
 }
+
+func (h *Handler) GetReserve(c *fiber.Ctx) error {
+	payload := struct {
+		UserID    uint64 `json:"user_id"`
+		ServiceID uint64 `json:"service_id"`
+		OrderID   uint64 `json:"order_id"`
+	}{}
+	if err := c.BodyParser(&payload); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	reserve, err := h.DB.GetReserve(payload.UserID, payload.ServiceID, payload.OrderID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(reserve)
+}
+
+func (h *Handler) GetService(c *fiber.Ctx) error {
+	payload := struct {
+		ServiceID uint64 `json:"id"`
+	}{}
+	if err := c.BodyParser(&payload); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	service, err := h.DB.GetService(payload.ServiceID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(service)
+}

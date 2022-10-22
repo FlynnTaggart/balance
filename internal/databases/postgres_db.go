@@ -137,7 +137,7 @@ func (db *PostgresDB) Purchase(userId, serviceId, orderId uint64, amount float32
 		ServiceID: serviceId,
 		OrderID:   orderId,
 	}
-	err := tx.Take(&reserve).Error
+	err := tx.Preload("User").Preload("Service").Preload("Order").Take(&reserve).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		tx.Rollback()
 		return fmt.Errorf("db: purchase: money were not reserved for user %d, service %d and order %d", userId, serviceId, orderId)
@@ -150,7 +150,7 @@ func (db *PostgresDB) Purchase(userId, serviceId, orderId uint64, amount float32
 	}
 
 	report := models.Report{
-		ServiceID:   reserve.ServiceID,
+		Service:     reserve.Service,
 		Amount:      reserve.Amount,
 		PurchasedAt: time.Now(),
 	}
@@ -173,4 +173,30 @@ func (db *PostgresDB) Purchase(userId, serviceId, orderId uint64, amount float32
 
 func (db *PostgresDB) AddServices(services []models.Service) error {
 	return db.Create(&services).Error
+}
+
+func (db *PostgresDB) GetReserve(userId, serviceId, orderId uint64) (models.Reserve, error) {
+	reserve := models.Reserve{
+		UserID:    userId,
+		ServiceID: serviceId,
+		OrderID:   orderId,
+	}
+	err := db.Preload("User").Preload("Service").Preload("Order").Take(&reserve).Error
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		return models.Reserve{}, fmt.Errorf("db: get reserve: money were not reserved for user %d, service %d and order %d", userId, serviceId, orderId)
+	} else if err != nil {
+		return models.Reserve{}, err
+	}
+	return reserve, nil
+}
+
+func (db *PostgresDB) GetService(serviceId uint64) (models.Service, error) {
+	var service models.Service
+	err := db.Take(&service, serviceId).Error
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		return models.Service{}, fmt.Errorf("db: reserve: no such service with id %d", serviceId)
+	} else if err != nil {
+		return models.Service{}, err
+	}
+	return service, nil
 }
