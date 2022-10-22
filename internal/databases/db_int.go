@@ -1,4 +1,4 @@
-package database
+package databases
 
 import "balance/internal/models"
 

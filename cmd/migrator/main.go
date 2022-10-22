@@ -2,6 +2,7 @@ package main
 
 import (
 	"balance/internal/models"
+	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
@@ -11,7 +12,14 @@ import (
 )
 
 func main() {
-	db, err := gorm.Open(postgres.Open(os.Getenv("DATABASE_URL")))
+	dsn := fmt.Sprintf("host=localhost user=%v password=%v dbname=%v port=%v sslmode=disable",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_DATABASE"),
+		os.Getenv("DB_PORT"),
+	)
+
+	db, err := gorm.Open(postgres.Open(dsn))
 	if err != nil {
 		log.Fatalln(err)
 	}

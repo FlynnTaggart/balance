@@ -1,12 +1,14 @@
-package database
+package databases
 
 import (
 	"balance/internal/models"
+
 	"errors"
 	"fmt"
+	"time"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"time"
 )
 
 type PostgresDB struct {
@@ -19,22 +21,48 @@ func NewPostgresDB(DB *gorm.DB) *PostgresDB {
 
 func (db *PostgresDB) GetBalance(id uint64) (float32, error) {
 	var user models.User
-	if err := db.Take(&user, id).Error; err != nil {
+	if err := db.Take(&user, id).Error; err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, fmt.Errorf("db: reserve: no such user with id %d", id)
+	} else if err != nil {
 		return 0, err
 	}
 	return user.Balance, nil
 }
 
 func (db *PostgresDB) AddBalance(id uint64, amount float32) error {
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
 	var user models.User
-	if err := db.Take(&user, id).Error; err != nil {
+	err := tx.Take(&user, id).Error
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		user = models.User{
+			ID:      id,
+			Balance: amount,
+		}
+		if err := tx.Create(&user).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		
+		return tx.Commit().Error
+
+	} else if err != nil {
+		tx.Rollback()
 		return err
 	}
+
 	user.Balance += amount
-	if err := db.Save(&user).Error; err != nil {
+	err = tx.Save(&user).Error
+	if err != nil {
+		tx.Rollback()
 		return err
 	}
-	return nil
+	return tx.Commit().Error
 }
 
 func (db *PostgresDB) Reserve(userId, serviceId, orderId uint64, amount float32) error {
@@ -47,7 +75,10 @@ func (db *PostgresDB) Reserve(userId, serviceId, orderId uint64, amount float32)
 
 	var user models.User
 	err := tx.Take(&user, userId).Error
-	if err != nil {
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		tx.Rollback()
+		return fmt.Errorf("db: reserve: no such user with id %d", userId)
+	} else if err != nil {
 		tx.Rollback()
 		return err
 	}
