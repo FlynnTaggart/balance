@@ -15,21 +15,23 @@ func NewHandler(DB databases.DBInt) *Handler {
 	return &Handler{DB: DB}
 }
 
+func returnBadRequest(err error, c *fiber.Ctx) error {
+	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		"message": err.Error(),
+	})
+}
+
 func (h *Handler) GetBalance(c *fiber.Ctx) error {
 	payload := struct {
 		ID uint64 `json:"id"`
 	}{}
 	if err := c.BodyParser(&payload); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	balance, err := h.DB.GetBalance(payload.ID)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	return c.JSON(fiber.Map{
@@ -43,16 +45,12 @@ func (h *Handler) AddBalance(c *fiber.Ctx) error {
 		Amount float32 `json:"amount"`
 	}{}
 	if err := c.BodyParser(&payload); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	err := h.DB.AddBalance(payload.ID, payload.Amount)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	return c.SendStatus(fiber.StatusOK)
@@ -66,16 +64,12 @@ func (h *Handler) Reserve(c *fiber.Ctx) error {
 		Amount    float32 `json:"amount"`
 	}{}
 	if err := c.BodyParser(&payload); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	err := h.DB.Reserve(payload.UserID, payload.ServiceID, payload.OrderID, payload.Amount)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	return c.SendStatus(fiber.StatusOK)
@@ -89,16 +83,12 @@ func (h *Handler) Purchase(c *fiber.Ctx) error {
 		Amount    float32 `json:"amount"`
 	}{}
 	if err := c.BodyParser(&payload); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	err := h.DB.Purchase(payload.UserID, payload.ServiceID, payload.OrderID, payload.Amount)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	return c.SendStatus(fiber.StatusOK)
@@ -109,16 +99,12 @@ func (h *Handler) AddServices(c *fiber.Ctx) error {
 		Services []models.Service `json:"services"`
 	}{}
 	if err := c.BodyParser(&payload); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	err := h.DB.AddServices(payload.Services[:])
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	return c.SendStatus(fiber.StatusOK)
@@ -131,16 +117,12 @@ func (h *Handler) GetReserve(c *fiber.Ctx) error {
 		OrderID   uint64 `json:"order_id"`
 	}{}
 	if err := c.BodyParser(&payload); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	reserve, err := h.DB.GetReserve(payload.UserID, payload.ServiceID, payload.OrderID)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	return c.JSON(reserve)
@@ -151,16 +133,12 @@ func (h *Handler) GetService(c *fiber.Ctx) error {
 		ServiceID uint64 `json:"id"`
 	}{}
 	if err := c.BodyParser(&payload); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	service, err := h.DB.GetService(payload.ServiceID)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return returnBadRequest(err, c)
 	}
 
 	return c.JSON(service)
