@@ -1,3 +1,5 @@
 # executable files
 *.exe
 
+# idea files
+.idea/
