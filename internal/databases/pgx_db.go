@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"strconv"
+	"strings"
 )
 
 type PgxDB struct {
@@ -27,7 +29,6 @@ func (p PgxDB) GetBalance(id uint64) (float32, error) {
 	} else if err != nil {
 		return 0, err
 	}
-	err = nil
 	return balance, err
 }
 
@@ -84,7 +85,45 @@ func (p PgxDB) Purchase(userId, serviceId, orderId uint64, amount float32) error
 }
 
 func (p PgxDB) AddServices(services []models.Service) error {
-	return errors.New("db: method not implemented")
+	var sb strings.Builder
+	sb.WriteString("insert into services (id, name) values ")
+	for i, s := range services {
+		var row string
+		if i == 0 {
+			row = "(" + strconv.FormatUint(s.ID, 10) + ", '" + s.Name + "')"
+		} else {
+			row = ", (" + strconv.FormatUint(s.ID, 10) + ", '" + s.Name + "')"
+		}
+		sb.WriteString(row)
+	}
+
+	ctx := context.TODO()
+
+	tx, err := p.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel:       pgx.Serializable,
+		DeferrableMode: pgx.Deferrable,
+	})
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			err = tx.Rollback(ctx)
+		} else {
+			err = tx.Commit(ctx)
+		}
+	}()
+
+	res, err := tx.Exec(ctx, sb.String())
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected() != int64(len(services)) {
+		err = errors.New("db: add services: ")
+		return err
+	}
+	return err
 }
 
 func (p PgxDB) GetReserve(userId, serviceId, orderId uint64) (models.Reserve, error) {
@@ -92,5 +131,15 @@ func (p PgxDB) GetReserve(userId, serviceId, orderId uint64) (models.Reserve, er
 }
 
 func (p PgxDB) GetService(serviceId uint64) (models.Service, error) {
-	return models.Service{}, errors.New("db: method not implemented")
+	ctx := context.TODO()
+
+	var service models.Service
+	err := p.QueryRow(ctx, "select * from services where id = $1;", serviceId).Scan(&service.ID, &service.Name)
+	if err != nil && errors.Is(err, pgx.ErrNoRows) {
+		return models.Service{}, fmt.Errorf("db: reserve: no such service with id %d", serviceId)
+	} else if err != nil {
+		return models.Service{}, err
+	}
+
+	return service, err
 }
