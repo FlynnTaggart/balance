@@ -4,16 +4,15 @@ import (
 	"balance/internal/databases"
 	"balance/internal/handlers"
 	"balance/internal/routes"
+	"context"
 	"fmt"
+	"github.com/jackc/pgx/v4/pgxpool"
 
 	"log"
 	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-
 	_ "github.com/joho/godotenv/autoload"
 )
 
@@ -28,21 +27,34 @@ func main() {
 		os.Getenv("DB_PORT"),
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn))
+	//db, err := gorm.Open(postgres.Open(dsn))
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//sqlDB, err := db.DB()
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//sqlDB.SetMaxIdleConns(10)
+	//sqlDB.SetMaxOpenConns(100)
+	//sqlDB.SetConnMaxLifetime(time.Hour)
+	//
+	//postgresDB := databases.NewPostgresDB(db)
+	//
+
+	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
-	sqlDB, err := db.DB()
-	if err != nil {
-		log.Fatal(err)
-	}
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
-	sqlDB.SetConnMaxLifetime(time.Hour)
+	config.MaxConns = 50
+	config.MaxConnLifetime = time.Minute * 10
+	config.MaxConnIdleTime = time.Minute * 30
 
-	postgresDB := databases.NewPostgresDB(db)
+	pool, err := pgxpool.Connect(context.Background(), dsn)
 
-	handler := handlers.NewHandler(postgresDB)
+	pgxDB := databases.NewPgxDB(pool)
+
+	handler := handlers.NewHandler(pgxDB)
 
 	routes.InitializeRoutes(app, handler)
 
