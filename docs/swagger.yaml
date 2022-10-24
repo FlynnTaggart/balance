@@ -1,0 +1,400 @@
+basePath: /api
+definitions:
+  models.PayloadAddBalance:
+    properties:
+      amount:
+        type: number
+      id:
+        type: integer
+    type: object
+  models.PayloadBalance:
+    properties:
+      balance:
+        type: number
+    type: object
+  models.PayloadErr:
+    properties:
+      message:
+        type: string
+    type: object
+  models.PayloadId:
+    properties:
+      id:
+        type: integer
+    type: object
+  models.PayloadLink:
+    properties:
+      report_link:
+        type: number
+    type: object
+  models.PayloadReserve:
+    properties:
+      amount:
+        type: number
+      order_id:
+        type: integer
+      service_id:
+        type: integer
+      user_id:
+        type: integer
+    type: object
+  models.Reserve:
+    properties:
+      amount:
+        description: amount of money stored in cents
+        type: integer
+      order_id:
+        type: integer
+      purchased:
+        description: purchase status
+        type: boolean
+      purchased_at:
+        description: time when purchase happened, could be nullable
+        type: string
+      reserved_at:
+        description: time when reserve happend
+        type: string
+      service:
+        $ref: '#/definitions/models.Service'
+      user:
+        $ref: '#/definitions/models.User'
+    type: object
+  models.Service:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  models.User:
+    properties:
+      balance:
+        type: integer
+      id:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: This is an auto-generated API Docs for Balance Microservice - a microservice
+    for managing user balances.
+  title: Balance Microservice
+  version: "1.0"
+paths:
+  /:
+    get:
+      consumes:
+      - application/json
+      description: Get user balance by given id
+      parameters:
+      - description: In JSON with User ID
+        in: body
+        name: inJSON
+        required: true
+        schema:
+          $ref: '#/definitions/models.PayloadId'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User's balance
+          schema:
+            $ref: '#/definitions/models.PayloadBalance'
+        "400":
+          description: Error
+          schema:
+            $ref: '#/definitions/models.PayloadErr'
+      summary: Get user balance
+      tags:
+      - Balance
+    post:
+      consumes:
+      - application/json
+      description: Add user balance by given id
+      parameters:
+      - description: In JSON with User ID and Amount
+        in: body
+        name: inJSON
+        required: true
+        schema:
+          $ref: '#/definitions/models.PayloadAddBalance'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Error
+          schema:
+            $ref: '#/definitions/models.PayloadErr'
+      summary: Add user balance
+      tags:
+      - Balance
+  /purchase/:
+    post:
+      consumes:
+      - application/json
+      description: Perform purchase for given orderId, userId, serviceId and amount.
+      parameters:
+      - description: In JSON with user_id, service_id, order_id and amount
+        in: body
+        name: inJSON
+        required: true
+        schema:
+          $ref: '#/definitions/models.PayloadReserve'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Error
+          schema:
+            $ref: '#/definitions/models.PayloadErr'
+      summary: Perform purchase
+      tags:
+      - Purchases
+  /report/:
+    post:
+      consumes:
+      - application/json
+      description: Get link to csv report file by given year and month
+      parameters:
+      - description: In JSON with Service ID
+        in: body
+        name: inJSON
+        required: true
+        schema:
+          $ref: '#/definitions/models.PayloadId'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Link to CSV file
+          schema:
+            $ref: '#/definitions/models.PayloadLink'
+        "400":
+          description: Error
+          schema:
+            $ref: '#/definitions/models.PayloadErr'
+      summary: Get link to csv report file
+      tags:
+      - Reports
+  /report/{year}/{month}/report.csv:
+    get:
+      consumes:
+      - application/json
+      description: Get csv report file by given year and month
+      parameters:
+      - description: Year
+        in: path
+        name: year
+        required: true
+        type: integer
+      - description: Month
+        in: path
+        name: month
+        required: true
+        type: integer
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: CSV file
+          schema:
+            type: string
+        "400":
+          description: Error
+          schema:
+            $ref: '#/definitions/models.PayloadErr'
+        "404":
+          description: CSV file not found
+          schema:
+            $ref: '#/definitions/models.PayloadErr'
+      summary: Get csv report file
+      tags:
+      - Reports
+  /reserve/:
+    delete:
+      consumes:
+      - application/json
+      description: Remove reserve for given orderId, userId, serviceId and amount.
+      parameters:
+      - description: In JSON with user_id, service_id, order_id and amount
+        in: body
+        name: inJSON
+        required: true
+        schema:
+          $ref: '#/definitions/models.PayloadReserve'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Error
+          schema:
+            $ref: '#/definitions/models.PayloadErr'
+      summary: Remove reserve
+      tags:
+      - Reserves
+    get:
+      consumes:
+      - application/json
+      description: Get reserve by user_id, service_id, order_id
+      parameters:
+      - description: In JSON with user_id, service_id, order_id
+        in: body
+        name: inJSON
+        required: true
+        schema:
+          $ref: '#/definitions/models.PayloadReserve'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service
+          schema:
+            $ref: '#/definitions/models.Reserve'
+        "400":
+          description: Error
+          schema:
+            $ref: '#/definitions/models.PayloadErr'
+      summary: Get reserve
+      tags:
+      - Reserves
+    post:
+      consumes:
+      - application/json
+      description: Reserve money for given orderId, userId, serviceId and amount.
+      parameters:
+      - description: In JSON with user_id, service_id, order_id and amount
+        in: body
+        name: inJSON
+        required: true
+        schema:
+          $ref: '#/definitions/models.PayloadReserve'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Error
+          schema:
+            $ref: '#/definitions/models.PayloadErr'
+      summary: Reserve money
+      tags:
+      - Reserves
+  /services/:
+    delete:
+      consumes:
+      - application/json
+      description: Delete service by given id
+      parameters:
+      - description: In JSON with Service ID
+        in: body
+        name: inJSON
+        required: true
+        schema:
+          $ref: '#/definitions/models.PayloadId'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Error
+          schema:
+            $ref: '#/definitions/models.PayloadErr'
+      summary: Delete service
+      tags:
+      - Services
+    get:
+      consumes:
+      - application/json
+      description: Get service by given id
+      parameters:
+      - description: In JSON with Service ID
+        in: body
+        name: inJSON
+        required: true
+        schema:
+          $ref: '#/definitions/models.PayloadId'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service
+          schema:
+            $ref: '#/definitions/models.Service'
+        "400":
+          description: Error
+          schema:
+            $ref: '#/definitions/models.PayloadErr'
+      summary: Get service
+      tags:
+      - Services
+    post:
+      consumes:
+      - application/json
+      description: Add multiple services
+      parameters:
+      - description: Array of services
+        in: body
+        name: inJSON
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/models.Service'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Error
+          schema:
+            $ref: '#/definitions/models.PayloadErr'
+      summary: Add multiple services
+      tags:
+      - Services
+  /users/:
+    delete:
+      consumes:
+      - application/json
+      description: Delete user by given id
+      parameters:
+      - description: In JSON with User ID
+        in: body
+        name: inJSON
+        required: true
+        schema:
+          $ref: '#/definitions/models.PayloadId'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Error
+          schema:
+            $ref: '#/definitions/models.PayloadErr'
+      summary: Delete user
+      tags:
+      - Users
+swagger: "2.0"

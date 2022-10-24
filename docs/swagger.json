@@ -1,0 +1,610 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is an auto-generated API Docs for Balance Microservice - a microservice for managing user balances.",
+        "title": "Balance Microservice",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/api",
+    "paths": {
+        "/": {
+            "get": {
+                "description": "Get user balance by given id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Balance"
+                ],
+                "summary": "Get user balance",
+                "parameters": [
+                    {
+                        "description": "In JSON with User ID",
+                        "name": "inJSON",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadId"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User's balance",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadBalance"
+                        }
+                    },
+                    "400": {
+                        "description": "Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadErr"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Add user balance by given id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Balance"
+                ],
+                "summary": "Add user balance",
+                "parameters": [
+                    {
+                        "description": "In JSON with User ID and Amount",
+                        "name": "inJSON",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadAddBalance"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadErr"
+                        }
+                    }
+                }
+            }
+        },
+        "/purchase/": {
+            "post": {
+                "description": "Perform purchase for given orderId, userId, serviceId and amount.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Purchases"
+                ],
+                "summary": "Perform purchase",
+                "parameters": [
+                    {
+                        "description": "In JSON with user_id, service_id, order_id and amount",
+                        "name": "inJSON",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadReserve"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadErr"
+                        }
+                    }
+                }
+            }
+        },
+        "/report/": {
+            "post": {
+                "description": "Get link to csv report file by given year and month",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Get link to csv report file",
+                "parameters": [
+                    {
+                        "description": "In JSON with Service ID",
+                        "name": "inJSON",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadId"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Link to CSV file",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadLink"
+                        }
+                    },
+                    "400": {
+                        "description": "Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadErr"
+                        }
+                    }
+                }
+            }
+        },
+        "/report/{year}/{month}/report.csv": {
+            "get": {
+                "description": "Get csv report file by given year and month",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Get csv report file",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Year",
+                        "name": "year",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Month",
+                        "name": "month",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CSV file",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadErr"
+                        }
+                    },
+                    "404": {
+                        "description": "CSV file not found",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadErr"
+                        }
+                    }
+                }
+            }
+        },
+        "/reserve/": {
+            "get": {
+                "description": "Get reserve by user_id, service_id, order_id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reserves"
+                ],
+                "summary": "Get reserve",
+                "parameters": [
+                    {
+                        "description": "In JSON with user_id, service_id, order_id",
+                        "name": "inJSON",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadReserve"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Service",
+                        "schema": {
+                            "$ref": "#/definitions/models.Reserve"
+                        }
+                    },
+                    "400": {
+                        "description": "Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadErr"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Reserve money for given orderId, userId, serviceId and amount.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reserves"
+                ],
+                "summary": "Reserve money",
+                "parameters": [
+                    {
+                        "description": "In JSON with user_id, service_id, order_id and amount",
+                        "name": "inJSON",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadReserve"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadErr"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove reserve for given orderId, userId, serviceId and amount.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reserves"
+                ],
+                "summary": "Remove reserve",
+                "parameters": [
+                    {
+                        "description": "In JSON with user_id, service_id, order_id and amount",
+                        "name": "inJSON",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadReserve"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadErr"
+                        }
+                    }
+                }
+            }
+        },
+        "/services/": {
+            "get": {
+                "description": "Get service by given id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Get service",
+                "parameters": [
+                    {
+                        "description": "In JSON with Service ID",
+                        "name": "inJSON",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadId"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Service",
+                        "schema": {
+                            "$ref": "#/definitions/models.Service"
+                        }
+                    },
+                    "400": {
+                        "description": "Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadErr"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Add multiple services",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Add multiple services",
+                "parameters": [
+                    {
+                        "description": "Array of services",
+                        "name": "inJSON",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Service"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadErr"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete service by given id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Delete service",
+                "parameters": [
+                    {
+                        "description": "In JSON with Service ID",
+                        "name": "inJSON",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadId"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadErr"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/": {
+            "delete": {
+                "description": "Delete user by given id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Delete user",
+                "parameters": [
+                    {
+                        "description": "In JSON with User ID",
+                        "name": "inJSON",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadId"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.PayloadErr"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.PayloadAddBalance": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.PayloadBalance": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.PayloadErr": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.PayloadId": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.PayloadLink": {
+            "type": "object",
+            "properties": {
+                "report_link": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.PayloadReserve": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "order_id": {
+                    "type": "integer"
+                },
+                "service_id": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.Reserve": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "description": "amount of money stored in cents",
+                    "type": "integer"
+                },
+                "order_id": {
+                    "type": "integer"
+                },
+                "purchased": {
+                    "description": "purchase status",
+                    "type": "boolean"
+                },
+                "purchased_at": {
+                    "description": "time when purchase happened, could be nullable",
+                    "type": "string"
+                },
+                "reserved_at": {
+                    "description": "time when reserve happend",
+                    "type": "string"
+                },
+                "service": {
+                    "$ref": "#/definitions/models.Service"
+                },
+                "user": {
+                    "$ref": "#/definitions/models.User"
+                }
+            }
+        },
+        "models.Service": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.User": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}

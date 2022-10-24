@@ -1,12 +1,13 @@
 package main
 
 import (
+	_ "balance/docs"
 	"balance/internal/databases"
 	"balance/internal/handlers"
 	"balance/internal/routes"
+
 	"context"
 	"fmt"
-
 	"log"
 	"os"
 	"time"
@@ -35,6 +36,10 @@ func initializeLogger() *zap.Logger {
 	return zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 }
 
+// @title       Balance Microservice
+// @version     1.0
+// @description This is an auto-generated API Docs for Balance Microservice - a microservice for managing user balances.
+// @BasePath    /api
 func main() {
 	app := fiber.New()
 
@@ -69,6 +74,7 @@ func main() {
 
 	handler := handlers.NewHandler(pgxDB)
 
+	routes.InitializeSwaggerRoute(app)
 	routes.InitializeRoutes(app, handler)
 
 	if err = app.Listen(os.Getenv("SERVER_URL")); err != nil {
