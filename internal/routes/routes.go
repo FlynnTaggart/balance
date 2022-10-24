@@ -12,8 +12,9 @@ func InitializeRoutes(a *fiber.App, handler *handlers.Handler) {
 	route.Get("", handler.GetBalance)
 	route.Post("", handler.AddBalance)
 	route.Post("/reserve", handler.Reserve)
+	route.Get("/reserve", handler.GetReserve)
+	route.Delete("/reserve", handler.DeleteReserve)
 	route.Post("/purchase", handler.Purchase)
 	route.Post("/services", handler.AddServices)
-	route.Get("/reserve", handler.GetReserve)
 	route.Get("/services", handler.GetService)
 }

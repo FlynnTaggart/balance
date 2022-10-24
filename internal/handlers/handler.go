@@ -143,3 +143,22 @@ func (h *Handler) GetService(c *fiber.Ctx) error {
 
 	return c.JSON(service)
 }
+
+func (h *Handler) DeleteReserve(c *fiber.Ctx) error {
+	payload := struct {
+		UserID    uint64  `json:"user_id"`
+		ServiceID uint64  `json:"service_id"`
+		OrderID   uint64  `json:"order_id"`
+		Amount    float32 `json:"amount"`
+	}{}
+	if err := c.BodyParser(&payload); err != nil {
+		return returnBadRequest(err, c)
+	}
+
+	err := h.DB.DeleteReserve(payload.UserID, payload.ServiceID, payload.OrderID, payload.Amount)
+	if err != nil {
+		return returnBadRequest(err, c)
+	}
+
+	return c.SendStatus(fiber.StatusOK)
+}

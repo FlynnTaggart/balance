@@ -133,6 +133,14 @@ func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount float32) error 
 	if err != nil {
 		return err
 	}
+
+	// TODO: make unreserve timeout configurable
+	go func() {
+		time.Sleep(10 * time.Second)
+		_ = p.DeleteReserve(userId, serviceId, orderId, amount)
+		// TODO: Log this err
+	}()
+
 	return err
 }
 
@@ -167,7 +175,7 @@ func (p PgxDB) GetReserve(userId, serviceId, orderId uint64) (models.Reserve, er
 		reserve.OrderID).Scan(&reserve.OrderID, &reserve.UserID, &reserve.ServiceID,
 		&reserve.Amount, &reserve.Purchased, &reserve.ReservedAt, &reserve.PurchasedAt)
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
-		err = fmt.Errorf("db: get reserve: money were not reserved order %d", orderId)
+		err = fmt.Errorf("db: get reserve: money were not reserved for order %d", orderId)
 		return models.Reserve{}, err
 	} else if err != nil {
 		return models.Reserve{}, err
@@ -299,4 +307,59 @@ func (p PgxDB) GetService(serviceId uint64) (models.Service, error) {
 	}
 
 	return service, err
+}
+
+func (p PgxDB) DeleteReserve(userId, serviceId, orderId uint64, amount float32) error {
+	ctx := context.TODO()
+
+	tx, err := p.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel: pgx.Serializable,
+	})
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			err = tx.Rollback(ctx)
+		} else {
+			err = tx.Commit(ctx)
+		}
+	}()
+
+	reserve := models.Reserve{
+		UserID:    userId,
+		ServiceID: serviceId,
+		OrderID:   orderId,
+	}
+
+	err = tx.QueryRow(ctx, "select * from reserves where order_id = $1 and user_id = $2 and service_id = $3",
+		reserve.OrderID, reserve.UserID, reserve.ServiceID).Scan(&reserve.OrderID, &reserve.UserID, &reserve.ServiceID,
+		&reserve.Amount, &reserve.Purchased, &reserve.ReservedAt, &reserve.PurchasedAt)
+	if err != nil {
+		return err
+	}
+	if !reserve.Purchased {
+		var user models.User
+		err = tx.QueryRow(ctx, "select * from users where id = $1;", userId).Scan(&user.ID, &user.Balance)
+		if err != nil {
+			return err
+		}
+
+		user.Balance += amount
+
+		var updateId uint64
+		err = tx.QueryRow(ctx, "update users SET balance = $2 where id = $1 returning id", user.ID, user.Balance).Scan(&updateId)
+		if err != nil {
+			return err
+		}
+
+		var deleteId uint64
+		err = tx.QueryRow(ctx, "delete from reserves where order_id = $1 returning order_id",
+			orderId).Scan(&deleteId)
+		if err != nil {
+			return err
+		}
+	}
+	return err
 }
