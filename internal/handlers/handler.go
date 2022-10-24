@@ -3,13 +3,11 @@ package handlers
 import (
 	"balance/internal/databases"
 	"balance/internal/models"
+	"balance/internal/utils"
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"time"
-
-	"math"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -42,7 +40,7 @@ func (h *Handler) GetBalance(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"balance": float32(balance) * 0.01,
+		"balance": utils.MoneyToFloat(balance),
 	})
 }
 
@@ -54,7 +52,7 @@ func (h *Handler) AddBalance(c *fiber.Ctx) error {
 	if err := c.BodyParser(&payload); err != nil {
 		return returnBadRequest(err, c)
 	}
-	err := h.DB.AddBalance(payload.ID, int64(math.Ceil(float64(payload.Amount*100))))
+	err := h.DB.AddBalance(payload.ID, utils.MoneyToInt(payload.Amount))
 	if err != nil {
 		return returnBadRequest(err, c)
 	}
@@ -89,7 +87,7 @@ func (h *Handler) Reserve(c *fiber.Ctx) error {
 		return returnBadRequest(err, c)
 	}
 
-	err := h.DB.Reserve(payload.UserID, payload.ServiceID, payload.OrderID, int64(math.Ceil(float64(payload.Amount*100))))
+	err := h.DB.Reserve(payload.UserID, payload.ServiceID, payload.OrderID, utils.MoneyToInt(payload.Amount))
 	if err != nil {
 		return returnBadRequest(err, c)
 	}
@@ -127,7 +125,7 @@ func (h *Handler) GetReserve(c *fiber.Ctx) error {
 		User:        reserve.User,
 		ServiceID:   reserve.ServiceID,
 		Service:     reserve.Service,
-		Amount:      float32(reserve.Amount) * 0.01,
+		Amount:      utils.MoneyToFloat(reserve.Amount),
 		Purchased:   reserve.Purchased,
 		ReservedAt:  reserve.ReservedAt,
 		PurchasedAt: reserve.PurchasedAt,
@@ -146,7 +144,7 @@ func (h *Handler) DeleteReserve(c *fiber.Ctx) error {
 		return returnBadRequest(err, c)
 	}
 
-	err := h.DB.DeleteReserve(payload.UserID, payload.ServiceID, payload.OrderID, int64(math.Ceil(float64(payload.Amount*100))))
+	err := h.DB.DeleteReserve(payload.UserID, payload.ServiceID, payload.OrderID, utils.MoneyToInt(payload.Amount))
 	if err != nil {
 		return returnBadRequest(err, c)
 	}
@@ -165,7 +163,7 @@ func (h *Handler) Purchase(c *fiber.Ctx) error {
 		return returnBadRequest(err, c)
 	}
 
-	err := h.DB.Purchase(payload.UserID, payload.ServiceID, payload.OrderID, int64(math.Ceil(float64(payload.Amount*100))))
+	err := h.DB.Purchase(payload.UserID, payload.ServiceID, payload.OrderID, utils.MoneyToInt(payload.Amount))
 	if err != nil {
 		return returnBadRequest(err, c)
 	}
@@ -232,7 +230,8 @@ func (h *Handler) GetReport(c *fiber.Ctx) error {
 	if payload.Month < 1 || payload.Month > 12 {
 		return returnBadRequest(errors.New("handler: get report: wrong month input"), c)
 	}
-	filePath := "./report/" + strconv.Itoa(payload.Year) + "/" + strconv.Itoa(payload.Month) + "/report.csv"
+
+	filePath := utils.GetReportFilePath(payload.Year, payload.Month)
 	if _, err := os.Stat(filePath); err == nil {
 		return c.SendFile(filePath, false)
 	} else if errors.Is(err, os.ErrNotExist) {
