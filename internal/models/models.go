@@ -3,8 +3,8 @@ package models
 import "time"
 
 type User struct {
-	ID      uint64  `json:"id" gorm:"primaryKey"`
-	Balance float32 `json:"balance"`
+	ID      uint64 `json:"id" gorm:"primaryKey"`
+	Balance int64  `json:"balance"`
 }
 
 type Service struct {
@@ -18,7 +18,7 @@ type Reserve struct {
 	User        User       `json:"user"`
 	ServiceID   uint64     `json:"-"`
 	Service     Service    `json:"service"`
-	Amount      float32    `json:"amount"`
+	Amount      int64      `json:"amount"`
 	Purchased   bool       `json:"purchased"`
 	ReservedAt  time.Time  `json:"reserved_at"`
 	PurchasedAt *time.Time `json:"purchased_at,omitempty"` // nullable

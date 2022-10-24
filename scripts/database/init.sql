@@ -9,7 +9,7 @@ ALTER TABLESPACE pg_default
 -- Users
 CREATE TABLE IF NOT EXISTS users(
     id BIGSERIAL NOT NULL,
-    balance numeric NOT NULL,
+    balance bigint NOT NULL,
     CONSTRAINT users_pkey PRIMARY KEY (id)
 ) TABLESPACE pg_default;
 
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS reserves (
     order_id bigint NOT NULL,
     user_id bigint NOT NULL,
     service_id bigint NOT NULL,
-    amount numeric NOT NULL,
+    amount bigint NOT NULL,
     purchased bool NOT NULL,
     reserved_at timestamp,
     purchased_at timestamp,

@@ -6,13 +6,13 @@ import (
 	"balance/internal/routes"
 	"context"
 	"fmt"
-	"github.com/jackc/pgx/v4/pgxpool"
 
 	"log"
 	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/joho/godotenv/autoload"
 )
 

@@ -3,6 +3,9 @@ package handlers
 import (
 	"balance/internal/databases"
 	"balance/internal/models"
+	"time"
+
+	"math"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -35,7 +38,7 @@ func (h *Handler) GetBalance(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"balance": balance,
+		"balance": float32(balance) * 0.01,
 	})
 }
 
@@ -47,8 +50,7 @@ func (h *Handler) AddBalance(c *fiber.Ctx) error {
 	if err := c.BodyParser(&payload); err != nil {
 		return returnBadRequest(err, c)
 	}
-
-	err := h.DB.AddBalance(payload.ID, payload.Amount)
+	err := h.DB.AddBalance(payload.ID, int64(math.Ceil(float64(payload.Amount*100))))
 	if err != nil {
 		return returnBadRequest(err, c)
 	}
@@ -83,7 +85,7 @@ func (h *Handler) Reserve(c *fiber.Ctx) error {
 		return returnBadRequest(err, c)
 	}
 
-	err := h.DB.Reserve(payload.UserID, payload.ServiceID, payload.OrderID, payload.Amount)
+	err := h.DB.Reserve(payload.UserID, payload.ServiceID, payload.OrderID, int64(math.Ceil(float64(payload.Amount*100))))
 	if err != nil {
 		return returnBadRequest(err, c)
 	}
@@ -105,8 +107,28 @@ func (h *Handler) GetReserve(c *fiber.Ctx) error {
 	if err != nil {
 		return returnBadRequest(err, c)
 	}
-
-	return c.JSON(reserve)
+	outPayload := struct {
+		OrderID     uint64         `json:"order_id" gorm:"primaryKey;autoIncrement:false"`
+		UserID      uint64         `json:"-"`
+		User        models.User    `json:"user"`
+		ServiceID   uint64         `json:"-"`
+		Service     models.Service `json:"service"`
+		Amount      float32        `json:"amount"`
+		Purchased   bool           `json:"purchased"`
+		ReservedAt  time.Time      `json:"reserved_at"`
+		PurchasedAt *time.Time     `json:"purchased_at,omitempty"` // nullable
+	}{
+		OrderID:     reserve.OrderID,
+		UserID:      reserve.UserID,
+		User:        reserve.User,
+		ServiceID:   reserve.ServiceID,
+		Service:     reserve.Service,
+		Amount:      float32(reserve.Amount) * 0.01,
+		Purchased:   reserve.Purchased,
+		ReservedAt:  reserve.ReservedAt,
+		PurchasedAt: reserve.PurchasedAt,
+	}
+	return c.JSON(outPayload)
 }
 
 func (h *Handler) DeleteReserve(c *fiber.Ctx) error {
@@ -120,7 +142,7 @@ func (h *Handler) DeleteReserve(c *fiber.Ctx) error {
 		return returnBadRequest(err, c)
 	}
 
-	err := h.DB.DeleteReserve(payload.UserID, payload.ServiceID, payload.OrderID, payload.Amount)
+	err := h.DB.DeleteReserve(payload.UserID, payload.ServiceID, payload.OrderID, int64(math.Ceil(float64(payload.Amount*100))))
 	if err != nil {
 		return returnBadRequest(err, c)
 	}
@@ -139,7 +161,7 @@ func (h *Handler) Purchase(c *fiber.Ctx) error {
 		return returnBadRequest(err, c)
 	}
 
-	err := h.DB.Purchase(payload.UserID, payload.ServiceID, payload.OrderID, payload.Amount)
+	err := h.DB.Purchase(payload.UserID, payload.ServiceID, payload.OrderID, int64(math.Ceil(float64(payload.Amount*100))))
 	if err != nil {
 		return returnBadRequest(err, c)
 	}

@@ -2,14 +2,16 @@ package databases
 
 import (
 	"balance/internal/models"
+
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type PgxDB struct {
@@ -20,10 +22,10 @@ func NewPgxDB(pool *pgxpool.Pool) *PgxDB {
 	return &PgxDB{Pool: pool}
 }
 
-func (p PgxDB) GetBalance(id uint64) (float32, error) {
+func (p PgxDB) GetBalance(id uint64) (int64, error) {
 	ctx := context.TODO()
 
-	var balance float32
+	var balance int64
 	err := p.QueryRow(ctx, "select balance from users where id = $1;", id).Scan(&balance)
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
 		return 0, fmt.Errorf("db: reserve: no such user with id %d", id)
@@ -33,7 +35,7 @@ func (p PgxDB) GetBalance(id uint64) (float32, error) {
 	return balance, err
 }
 
-func (p PgxDB) AddBalance(id uint64, amount float32) error {
+func (p PgxDB) AddBalance(id uint64, amount int64) error {
 	ctx := context.TODO()
 
 	tx, err := p.BeginTx(ctx, pgx.TxOptions{
@@ -91,7 +93,7 @@ func (p PgxDB) DeleteUser(id uint64) error {
 	return nil
 }
 
-func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount float32) error {
+func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount int64) error {
 	ctx := context.TODO()
 
 	tx, err := p.BeginTx(ctx, pgx.TxOptions{
@@ -117,7 +119,9 @@ func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount float32) error 
 	} else if err != nil {
 		return err
 	} else if amount > user.Balance {
-		err = fmt.Errorf("db: reserve: the user %d doesn't have enough money, needed: %.2f, user has: %.2f", userId, amount, user.Balance)
+		needed := (float32(amount%100) * 0.01) + float32(amount/100)
+		got := (float32(user.Balance%100) * 0.01) + float32(user.Balance/100)
+		err = fmt.Errorf("db: reserve: the user %d doesn't have enough money, needed: %.2f, user has: %.2f", userId, needed, got)
 		return err
 	}
 
@@ -147,9 +151,9 @@ func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount float32) error 
 		return err
 	}
 
-	// TODO: make unreserve timeout configurable
+	// TODO: make delete reserve timeout configurable
 	go func() {
-		time.Sleep(10 * time.Second)
+		time.Sleep(10 * time.Minute)
 		_ = p.DeleteReserve(userId, serviceId, orderId, amount)
 		// TODO: Log this err
 	}()
@@ -211,7 +215,7 @@ func (p PgxDB) GetReserve(userId, serviceId, orderId uint64) (models.Reserve, er
 	return reserve, err
 }
 
-func (p PgxDB) DeleteReserve(userId, serviceId, orderId uint64, amount float32) error {
+func (p PgxDB) DeleteReserve(userId, serviceId, orderId uint64, amount int64) error {
 	ctx := context.TODO()
 
 	tx, err := p.BeginTx(ctx, pgx.TxOptions{
@@ -266,7 +270,7 @@ func (p PgxDB) DeleteReserve(userId, serviceId, orderId uint64, amount float32) 
 	return err
 }
 
-func (p PgxDB) Purchase(userId, serviceId, orderId uint64, amount float32) error {
+func (p PgxDB) Purchase(userId, serviceId, orderId uint64, amount int64) error {
 	ctx := context.TODO()
 
 	tx, err := p.BeginTx(ctx, pgx.TxOptions{
@@ -299,7 +303,9 @@ func (p PgxDB) Purchase(userId, serviceId, orderId uint64, amount float32) error
 	} else if err != nil {
 		return err
 	} else if reserve.Amount != amount {
-		err = fmt.Errorf("db: purchase: wrong purchase amount, stored in reserve: %.2f, got: %.2f", reserve.Amount, amount)
+		got := (float32(amount%100) * 0.01) + float32(amount/100)
+		stored := (float32(reserve.Amount%100) * 0.01) + float32(reserve.Amount/100)
+		err = fmt.Errorf("db: purchase: wrong purchase amount, stored in reserve: %.2f, got: %.2f", stored, got)
 		return err
 	} else if reserve.Purchased {
 		err = errors.New("db: purchase: the purchase has already happened")
