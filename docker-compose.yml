@@ -17,6 +17,8 @@ services:
       dockerfile: Dockerfile
     image: balance_server
     env_file: .env
+    volumes:
+      - ./logs:/go/src/balance/logs
     depends_on:
       - database
     ports:

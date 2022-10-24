@@ -3,3 +3,6 @@
 
 # idea files
 .idea/
+
+# logs
+logs/
