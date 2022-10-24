@@ -134,7 +134,6 @@ func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount float32) error 
 		if err != nil {
 			return err
 		}
-		return err
 	} else if err != nil {
 		return err
 	}
@@ -179,7 +178,8 @@ func (p PgxDB) GetReserve(userId, serviceId, orderId uint64) (models.Reserve, er
 		reserve.UserID, reserve.ServiceID, reserve.OrderID).Scan(&reserve.UserID, &reserve.ServiceID, &reserve.OrderID,
 		&reserve.Amount, &reserve.Purchased, &reserve.ReservedAt, &reserve.PurchasedAt)
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
-		return models.Reserve{}, fmt.Errorf("db: get reserve: money were not reserved for user %d, service %d and order %d", userId, serviceId, orderId)
+		err = fmt.Errorf("db: get reserve: money were not reserved for user %d, service %d and order %d", userId, serviceId, orderId)
+		return models.Reserve{}, err
 	} else if err != nil {
 		return models.Reserve{}, err
 	}
@@ -209,7 +209,56 @@ func (p PgxDB) GetReserve(userId, serviceId, orderId uint64) (models.Reserve, er
 }
 
 func (p PgxDB) Purchase(userId, serviceId, orderId uint64, amount float32) error {
-	return errors.New("db: method not implemented")
+	ctx := context.TODO()
+
+	tx, err := p.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel: pgx.Serializable,
+	})
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			err = tx.Rollback(ctx)
+		} else {
+			err = tx.Commit(ctx)
+		}
+	}()
+
+	reserve := models.Reserve{
+		UserID:    userId,
+		ServiceID: serviceId,
+		OrderID:   orderId,
+	}
+
+	err = tx.QueryRow(ctx, "select * from reserves where user_id = $1 and service_id = $2 and order_id = $3",
+		reserve.UserID, reserve.ServiceID, reserve.OrderID).Scan(&reserve.UserID, &reserve.ServiceID, &reserve.OrderID,
+		&reserve.Amount, &reserve.Purchased, &reserve.ReservedAt, &reserve.PurchasedAt)
+	if err != nil && errors.Is(err, pgx.ErrNoRows) {
+		err = fmt.Errorf("db: get purchase: money were not reserved for user %d, service %d and order %d", userId, serviceId, orderId)
+		return err
+	} else if err != nil {
+		return err
+	} else if reserve.Amount != amount {
+		err = fmt.Errorf("db: purchase: wrong purchase amount, stored in reserve: %.2f, got: %.2f", reserve.Amount, amount)
+		return err
+	} else if reserve.Purchased {
+		err = errors.New("db: purchase: the purchase has already happened")
+		return err
+	}
+	purchasedAt := time.Now()
+	reserve.PurchasedAt = &purchasedAt
+	reserve.Purchased = true
+
+	var updateId uint64
+	err = tx.QueryRow(ctx, "update reserves SET purchased = $1, purchased_at = $2 where user_id = $3 and service_id = $4 and order_id = $5 returning user_id",
+		reserve.Purchased, reserve.PurchasedAt, reserve.UserID, reserve.ServiceID, reserve.OrderID).Scan(&updateId)
+	if err != nil {
+		return err
+	}
+
+	return err
 }
 
 func (p PgxDB) AddServices(services []models.Service) error {
@@ -247,7 +296,7 @@ func (p PgxDB) AddServices(services []models.Service) error {
 		return err
 	}
 	if res.RowsAffected() != int64(len(services)) {
-		err = errors.New("db: add services: ")
+		err = errors.New("db: add services: failed to add services")
 		return err
 	}
 	return err
@@ -259,7 +308,8 @@ func (p PgxDB) GetService(serviceId uint64) (models.Service, error) {
 	var service models.Service
 	err := p.QueryRow(ctx, "select * from services where id = $1;", serviceId).Scan(&service.ID, &service.Name)
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
-		return models.Service{}, fmt.Errorf("db: reserve: no such service with id %d", serviceId)
+		err = fmt.Errorf("db: reserve: no such service with id %d", serviceId)
+		return models.Service{}, err
 	} else if err != nil {
 		return models.Service{}, err
 	}
