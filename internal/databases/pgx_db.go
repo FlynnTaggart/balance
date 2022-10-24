@@ -78,6 +78,19 @@ func (p PgxDB) AddBalance(id uint64, amount float32) error {
 	return err
 }
 
+func (p PgxDB) DeleteUser(id uint64) error {
+	ctx := context.TODO()
+
+	res, err := p.Exec(ctx, "delete from users where id = $1", id)
+	if err != nil {
+		return err
+	} else if res.RowsAffected() == 0 {
+		err = fmt.Errorf("db: delete user: no such user with id %d", id)
+		return err
+	}
+	return nil
+}
+
 func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount float32) error {
 	ctx := context.TODO()
 
@@ -198,6 +211,61 @@ func (p PgxDB) GetReserve(userId, serviceId, orderId uint64) (models.Reserve, er
 	return reserve, err
 }
 
+func (p PgxDB) DeleteReserve(userId, serviceId, orderId uint64, amount float32) error {
+	ctx := context.TODO()
+
+	tx, err := p.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel: pgx.Serializable,
+	})
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			err = tx.Rollback(ctx)
+		} else {
+			err = tx.Commit(ctx)
+		}
+	}()
+
+	reserve := models.Reserve{
+		UserID:    userId,
+		ServiceID: serviceId,
+		OrderID:   orderId,
+	}
+
+	err = tx.QueryRow(ctx, "select * from reserves where order_id = $1 and user_id = $2 and service_id = $3",
+		reserve.OrderID, reserve.UserID, reserve.ServiceID).Scan(&reserve.OrderID, &reserve.UserID, &reserve.ServiceID,
+		&reserve.Amount, &reserve.Purchased, &reserve.ReservedAt, &reserve.PurchasedAt)
+	if err != nil {
+		return err
+	}
+	if !reserve.Purchased {
+		var user models.User
+		err = tx.QueryRow(ctx, "select * from users where id = $1;", userId).Scan(&user.ID, &user.Balance)
+		if err != nil {
+			return err
+		}
+
+		user.Balance += amount
+
+		var updateId uint64
+		err = tx.QueryRow(ctx, "update users SET balance = $2 where id = $1 returning id", user.ID, user.Balance).Scan(&updateId)
+		if err != nil {
+			return err
+		}
+
+		var deleteId uint64
+		err = tx.QueryRow(ctx, "delete from reserves where order_id = $1 returning order_id",
+			orderId).Scan(&deleteId)
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
 func (p PgxDB) Purchase(userId, serviceId, orderId uint64, amount float32) error {
 	ctx := context.TODO()
 
@@ -294,13 +362,13 @@ func (p PgxDB) AddServices(services []models.Service) error {
 	return err
 }
 
-func (p PgxDB) GetService(serviceId uint64) (models.Service, error) {
+func (p PgxDB) GetService(id uint64) (models.Service, error) {
 	ctx := context.TODO()
 
 	var service models.Service
-	err := p.QueryRow(ctx, "select * from services where id = $1;", serviceId).Scan(&service.ID, &service.Name)
+	err := p.QueryRow(ctx, "select * from services where id = $1;", id).Scan(&service.ID, &service.Name)
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
-		err = fmt.Errorf("db: reserve: no such service with id %d", serviceId)
+		err = fmt.Errorf("db: get service: no such service with id %d", id)
 		return models.Service{}, err
 	} else if err != nil {
 		return models.Service{}, err
@@ -309,57 +377,15 @@ func (p PgxDB) GetService(serviceId uint64) (models.Service, error) {
 	return service, err
 }
 
-func (p PgxDB) DeleteReserve(userId, serviceId, orderId uint64, amount float32) error {
+func (p PgxDB) DeleteService(id uint64) error {
 	ctx := context.TODO()
 
-	tx, err := p.BeginTx(ctx, pgx.TxOptions{
-		IsoLevel: pgx.Serializable,
-	})
+	res, err := p.Exec(ctx, "delete from services where id = $1", id)
 	if err != nil {
 		return err
-	}
-
-	defer func() {
-		if err != nil {
-			err = tx.Rollback(ctx)
-		} else {
-			err = tx.Commit(ctx)
-		}
-	}()
-
-	reserve := models.Reserve{
-		UserID:    userId,
-		ServiceID: serviceId,
-		OrderID:   orderId,
-	}
-
-	err = tx.QueryRow(ctx, "select * from reserves where order_id = $1 and user_id = $2 and service_id = $3",
-		reserve.OrderID, reserve.UserID, reserve.ServiceID).Scan(&reserve.OrderID, &reserve.UserID, &reserve.ServiceID,
-		&reserve.Amount, &reserve.Purchased, &reserve.ReservedAt, &reserve.PurchasedAt)
-	if err != nil {
+	} else if res.RowsAffected() == 0 {
+		err = fmt.Errorf("db: delete service: no such service with id %d", id)
 		return err
 	}
-	if !reserve.Purchased {
-		var user models.User
-		err = tx.QueryRow(ctx, "select * from users where id = $1;", userId).Scan(&user.ID, &user.Balance)
-		if err != nil {
-			return err
-		}
-
-		user.Balance += amount
-
-		var updateId uint64
-		err = tx.QueryRow(ctx, "update users SET balance = $2 where id = $1 returning id", user.ID, user.Balance).Scan(&updateId)
-		if err != nil {
-			return err
-		}
-
-		var deleteId uint64
-		err = tx.QueryRow(ctx, "delete from reserves where order_id = $1 returning order_id",
-			orderId).Scan(&deleteId)
-		if err != nil {
-			return err
-		}
-	}
-	return err
+	return nil
 }

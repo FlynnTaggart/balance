@@ -56,6 +56,22 @@ func (h *Handler) AddBalance(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
+func (h *Handler) DeleteUser(c *fiber.Ctx) error {
+	payload := struct {
+		ID uint64 `json:"id"`
+	}{}
+	if err := c.BodyParser(&payload); err != nil {
+		return returnBadRequest(err, c)
+	}
+
+	err := h.DB.DeleteUser(payload.ID)
+	if err != nil {
+		return returnBadRequest(err, c)
+	}
+
+	return c.SendStatus(fiber.StatusOK)
+}
+
 func (h *Handler) Reserve(c *fiber.Ctx) error {
 	payload := struct {
 		UserID    uint64  `json:"user_id"`
@@ -68,6 +84,43 @@ func (h *Handler) Reserve(c *fiber.Ctx) error {
 	}
 
 	err := h.DB.Reserve(payload.UserID, payload.ServiceID, payload.OrderID, payload.Amount)
+	if err != nil {
+		return returnBadRequest(err, c)
+	}
+
+	return c.SendStatus(fiber.StatusOK)
+}
+
+func (h *Handler) GetReserve(c *fiber.Ctx) error {
+	payload := struct {
+		UserID    uint64 `json:"user_id"`
+		ServiceID uint64 `json:"service_id"`
+		OrderID   uint64 `json:"order_id"`
+	}{}
+	if err := c.BodyParser(&payload); err != nil {
+		return returnBadRequest(err, c)
+	}
+
+	reserve, err := h.DB.GetReserve(payload.UserID, payload.ServiceID, payload.OrderID)
+	if err != nil {
+		return returnBadRequest(err, c)
+	}
+
+	return c.JSON(reserve)
+}
+
+func (h *Handler) DeleteReserve(c *fiber.Ctx) error {
+	payload := struct {
+		UserID    uint64  `json:"user_id"`
+		ServiceID uint64  `json:"service_id"`
+		OrderID   uint64  `json:"order_id"`
+		Amount    float32 `json:"amount"`
+	}{}
+	if err := c.BodyParser(&payload); err != nil {
+		return returnBadRequest(err, c)
+	}
+
+	err := h.DB.DeleteReserve(payload.UserID, payload.ServiceID, payload.OrderID, payload.Amount)
 	if err != nil {
 		return returnBadRequest(err, c)
 	}
@@ -110,24 +163,6 @@ func (h *Handler) AddServices(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-func (h *Handler) GetReserve(c *fiber.Ctx) error {
-	payload := struct {
-		UserID    uint64 `json:"user_id"`
-		ServiceID uint64 `json:"service_id"`
-		OrderID   uint64 `json:"order_id"`
-	}{}
-	if err := c.BodyParser(&payload); err != nil {
-		return returnBadRequest(err, c)
-	}
-
-	reserve, err := h.DB.GetReserve(payload.UserID, payload.ServiceID, payload.OrderID)
-	if err != nil {
-		return returnBadRequest(err, c)
-	}
-
-	return c.JSON(reserve)
-}
-
 func (h *Handler) GetService(c *fiber.Ctx) error {
 	payload := struct {
 		ServiceID uint64 `json:"id"`
@@ -144,18 +179,15 @@ func (h *Handler) GetService(c *fiber.Ctx) error {
 	return c.JSON(service)
 }
 
-func (h *Handler) DeleteReserve(c *fiber.Ctx) error {
+func (h *Handler) DeleteService(c *fiber.Ctx) error {
 	payload := struct {
-		UserID    uint64  `json:"user_id"`
-		ServiceID uint64  `json:"service_id"`
-		OrderID   uint64  `json:"order_id"`
-		Amount    float32 `json:"amount"`
+		ID uint64 `json:"id"`
 	}{}
 	if err := c.BodyParser(&payload); err != nil {
 		return returnBadRequest(err, c)
 	}
 
-	err := h.DB.DeleteReserve(payload.UserID, payload.ServiceID, payload.OrderID, payload.Amount)
+	err := h.DB.DeleteService(payload.ID)
 	if err != nil {
 		return returnBadRequest(err, c)
 	}
