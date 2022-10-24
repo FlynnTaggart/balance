@@ -124,9 +124,12 @@ func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount float32) error 
 		return err
 	}
 
+	loc, _ := time.LoadLocation("Europe/Moscow")
+	date := time.Now().In(loc)
+
 	var reserveId uint64
 	err = tx.QueryRow(ctx, "insert into reserves (order_id, user_id, service_id, amount, purchased, reserved_at) values ($1, $2, $3, $4, $5, $6) returning order_id",
-		orderId, userId, serviceId, amount, false, time.Now()).Scan(&reserveId)
+		orderId, userId, serviceId, amount, false, date).Scan(&reserveId)
 	if err != nil {
 		return err
 	}
@@ -226,7 +229,9 @@ func (p PgxDB) Purchase(userId, serviceId, orderId uint64, amount float32) error
 		err = errors.New("db: purchase: the purchase has already happened")
 		return err
 	}
-	purchasedAt := time.Now()
+
+	loc, _ := time.LoadLocation("Europe/Moscow")
+	purchasedAt := time.Now().In(loc)
 	reserve.PurchasedAt = &purchasedAt
 	reserve.Purchased = true
 
