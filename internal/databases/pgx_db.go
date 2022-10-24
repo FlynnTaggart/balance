@@ -18,17 +18,28 @@ import (
 
 type PgxDB struct {
 	*pgxpool.Pool
+	Logger pgx.Logger
 }
 
-func NewPgxDB(pool *pgxpool.Pool) *PgxDB {
-	return &PgxDB{Pool: pool}
+func NewPgxDB(pool *pgxpool.Pool, logger pgx.Logger) *PgxDB {
+	return &PgxDB{
+		Pool:   pool,
+		Logger: logger,
+	}
 }
 
 func (p PgxDB) GetBalance(id uint64) (int64, error) {
 	ctx := context.TODO()
 
+	var err error
+	defer func() {
+		if err != nil {
+			p.Logger.Log(ctx, pgx.LogLevelError, fmt.Sprintf("db: add balance: %v", err), nil)
+		}
+	}()
+
 	var balance int64
-	err := p.QueryRow(ctx, "select balance from users where id = $1;", id).Scan(&balance)
+	err = p.QueryRow(ctx, "select balance from users where id = $1;", id).Scan(&balance)
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
 		return 0, fmt.Errorf("db: reserve: no such user with id %d", id)
 	} else if err != nil {
@@ -39,6 +50,13 @@ func (p PgxDB) GetBalance(id uint64) (int64, error) {
 
 func (p PgxDB) AddBalance(id uint64, amount int64) error {
 	ctx := context.TODO()
+
+	var err error
+	defer func() {
+		if err != nil {
+			p.Logger.Log(ctx, pgx.LogLevelError, fmt.Sprintf("db: add balance: %v", err), nil)
+		}
+	}()
 
 	tx, err := p.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel: pgx.Serializable,
@@ -93,6 +111,13 @@ func (p PgxDB) AddBalance(id uint64, amount int64) error {
 func (p PgxDB) DeleteUser(id uint64) error {
 	ctx := context.TODO()
 
+	var err error
+	defer func() {
+		if err != nil {
+			p.Logger.Log(ctx, pgx.LogLevelError, fmt.Sprintf("db: delete user: %v", err), nil)
+		}
+	}()
+
 	res, err := p.Exec(ctx, "delete from users where id = $1", id)
 	if err != nil {
 		return err
@@ -105,6 +130,13 @@ func (p PgxDB) DeleteUser(id uint64) error {
 
 func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount int64) error {
 	ctx := context.TODO()
+
+	var err error
+	defer func() {
+		if err != nil {
+			p.Logger.Log(ctx, pgx.LogLevelError, fmt.Sprintf("db: reserve: %v", err), nil)
+		}
+	}()
 
 	tx, err := p.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel: pgx.Serializable,
@@ -164,8 +196,8 @@ func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount int64) error {
 	// TODO: make delete reserve timeout configurable
 	go func() {
 		time.Sleep(10 * time.Minute)
-		_ = p.DeleteReserve(userId, serviceId, orderId, amount)
-		// TODO: Log this err
+		err = p.DeleteReserve(userId, serviceId, orderId, amount)
+		p.Logger.Log(ctx, pgx.LogLevelError, fmt.Sprintf("db: reserve: %v", err), nil)
 	}()
 
 	return err
@@ -173,6 +205,13 @@ func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount int64) error {
 
 func (p PgxDB) GetReserve(userId, serviceId, orderId uint64) (models.Reserve, error) {
 	ctx := context.TODO()
+
+	var err error
+	defer func() {
+		if err != nil {
+			p.Logger.Log(ctx, pgx.LogLevelError, fmt.Sprintf("db: get reserve: %v", err), nil)
+		}
+	}()
 
 	tx, err := p.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel:       pgx.Serializable,
@@ -228,6 +267,13 @@ func (p PgxDB) GetReserve(userId, serviceId, orderId uint64) (models.Reserve, er
 func (p PgxDB) DeleteReserve(userId, serviceId, orderId uint64, amount int64) error {
 	ctx := context.TODO()
 
+	var err error
+	defer func() {
+		if err != nil {
+			p.Logger.Log(ctx, pgx.LogLevelError, fmt.Sprintf("db: delete reserve: %v", err), nil)
+		}
+	}()
+
 	tx, err := p.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel: pgx.Serializable,
 	})
@@ -282,6 +328,13 @@ func (p PgxDB) DeleteReserve(userId, serviceId, orderId uint64, amount int64) er
 
 func (p PgxDB) Purchase(userId, serviceId, orderId uint64, amount int64) error {
 	ctx := context.TODO()
+
+	var err error
+	defer func() {
+		if err != nil {
+			p.Logger.Log(ctx, pgx.LogLevelError, fmt.Sprintf("db: purchase: %v", err), nil)
+		}
+	}()
 
 	tx, err := p.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel: pgx.Serializable,
@@ -366,6 +419,13 @@ func (p PgxDB) AddServices(services []models.Service) error {
 
 	ctx := context.TODO()
 
+	var err error
+	defer func() {
+		if err != nil {
+			p.Logger.Log(ctx, pgx.LogLevelError, fmt.Sprintf("db: add services: %v", err), nil)
+		}
+	}()
+
 	tx, err := p.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel: pgx.Serializable,
 	})
@@ -395,8 +455,15 @@ func (p PgxDB) AddServices(services []models.Service) error {
 func (p PgxDB) GetService(id uint64) (models.Service, error) {
 	ctx := context.TODO()
 
+	var err error
+	defer func() {
+		if err != nil {
+			p.Logger.Log(ctx, pgx.LogLevelError, fmt.Sprintf("db: get service: %v", err), nil)
+		}
+	}()
+
 	var service models.Service
-	err := p.QueryRow(ctx, "select * from services where id = $1;", id).Scan(&service.ID, &service.Name)
+	err = p.QueryRow(ctx, "select * from services where id = $1;", id).Scan(&service.ID, &service.Name)
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
 		err = fmt.Errorf("db: get service: no such service with id %d", id)
 		return models.Service{}, err
@@ -410,6 +477,13 @@ func (p PgxDB) GetService(id uint64) (models.Service, error) {
 func (p PgxDB) DeleteService(id uint64) error {
 	ctx := context.TODO()
 
+	var err error
+	defer func() {
+		if err != nil {
+			p.Logger.Log(ctx, pgx.LogLevelError, fmt.Sprintf("db: delete service: %v", err), nil)
+		}
+	}()
+
 	res, err := p.Exec(ctx, "delete from services where id = $1", id)
 	if err != nil {
 		return err
@@ -422,6 +496,13 @@ func (p PgxDB) DeleteService(id uint64) error {
 
 func (p PgxDB) CreateReport(year, month int) (string, error) {
 	ctx := context.TODO()
+
+	var err error
+	defer func() {
+		if err != nil {
+			p.Logger.Log(ctx, pgx.LogLevelError, fmt.Sprintf("db: create report: %v", err), nil)
+		}
+	}()
 
 	type parsedRow struct {
 		ServiceName string
@@ -453,7 +534,7 @@ func (p PgxDB) CreateReport(year, month int) (string, error) {
 	}
 
 	filePath := utils.GetReportFilePath(year, month)
-	_, err := os.Stat(filePath)
+	_, err = os.Stat(filePath)
 	if errors.Is(err, os.ErrNotExist) {
 		err = os.MkdirAll(utils.GetReportFileDir(year, month), os.ModePerm)
 		if err != nil {
@@ -468,10 +549,7 @@ func (p PgxDB) CreateReport(year, month int) (string, error) {
 		return "", err
 	}
 	defer func() {
-		err := file.Close()
-		if err != nil {
-			// TODO: log this error
-		}
+		err = file.Close()
 	}()
 
 	w := csv.NewWriter(file)

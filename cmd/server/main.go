@@ -27,7 +27,7 @@ func initializeLogger() *zap.Logger {
 	consoleEncoder := zapcore.NewConsoleEncoder(config)
 	logFile, _ := os.OpenFile("./logs/server.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	writer := zapcore.AddSync(logFile)
-	defaultLogLevel := zapcore.InfoLevel
+	defaultLogLevel := zapcore.DebugLevel
 	core := zapcore.NewTee(
 		zapcore.NewCore(fileEncoder, writer, defaultLogLevel),
 		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), defaultLogLevel),
@@ -58,14 +58,14 @@ func main() {
 		log.Fatal(err)
 	}
 	config.ConnConfig.Logger = zapadapter.NewLogger(logger)
-	config.ConnConfig.LogLevel = pgx.LogLevelInfo
+	config.ConnConfig.LogLevel = pgx.LogLevelDebug
 	config.MaxConns = 50
 	config.MaxConnLifetime = time.Minute * 10
 	config.MaxConnIdleTime = time.Minute * 30
 
 	pool, err := pgxpool.ConnectConfig(context.Background(), config)
 
-	pgxDB := databases.NewPgxDB(pool)
+	pgxDB := databases.NewPgxDB(pool, zapadapter.NewLogger(logger))
 
 	handler := handlers.NewHandler(pgxDB)
 
