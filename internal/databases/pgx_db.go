@@ -140,8 +140,8 @@ func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount float32) error 
 	}
 
 	var reserveId uint64
-	err = tx.QueryRow(ctx, "insert into reserves (user_id, service_id, order_id, amount, reserved_at) values ($1, $2, $3, $4, $5) returning user_id",
-		userId, serviceId, orderId, amount, time.Now()).Scan(&reserveId)
+	err = tx.QueryRow(ctx, "insert into reserves (user_id, service_id, order_id, amount, purchased, reserved_at) values ($1, $2, $3, $4, $5, $6) returning user_id",
+		userId, serviceId, orderId, amount, false, time.Now()).Scan(&reserveId)
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,8 @@ func (p PgxDB) GetReserve(userId, serviceId, orderId uint64) (models.Reserve, er
 
 	// it would be better to select only amount and reservedAt but pgx gets error then
 	err = tx.QueryRow(ctx, "select * from reserves where user_id = $1 and service_id = $2 and order_id = $3",
-		reserve.UserID, reserve.ServiceID, reserve.OrderID).Scan(&reserve.UserID, &reserve.ServiceID, &reserve.OrderID, &reserve.Amount, &reserve.ReservedAt)
+		reserve.UserID, reserve.ServiceID, reserve.OrderID).Scan(&reserve.UserID, &reserve.ServiceID, &reserve.OrderID,
+		&reserve.Amount, &reserve.Purchased, &reserve.ReservedAt, &reserve.PurchasedAt)
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
 		return models.Reserve{}, fmt.Errorf("db: get reserve: money were not reserved for user %d, service %d and order %d", userId, serviceId, orderId)
 	} else if err != nil {
