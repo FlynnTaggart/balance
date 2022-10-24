@@ -103,9 +103,7 @@ func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount float32) error 
 		return err
 	} else if err != nil {
 		return err
-	}
-
-	if amount > user.Balance {
+	} else if amount > user.Balance {
 		err = fmt.Errorf("db: reserve: the user %d doesn't have enough money, needed: %.2f, user has: %.2f", userId, amount, user.Balance)
 		return err
 	}
@@ -126,21 +124,9 @@ func (p PgxDB) Reserve(userId, serviceId, orderId uint64, amount float32) error 
 		return err
 	}
 
-	var checkOrderId uint64
-	err = tx.QueryRow(ctx, "select * from orders where id = $1;", orderId).Scan(&checkOrderId)
-	if err != nil && errors.Is(err, pgx.ErrNoRows) {
-		var createdId uint64
-		err = tx.QueryRow(ctx, "insert into orders (id) values ($1) returning id", orderId).Scan(&createdId)
-		if err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
-	}
-
 	var reserveId uint64
-	err = tx.QueryRow(ctx, "insert into reserves (user_id, service_id, order_id, amount, purchased, reserved_at) values ($1, $2, $3, $4, $5, $6) returning user_id",
-		userId, serviceId, orderId, amount, false, time.Now()).Scan(&reserveId)
+	err = tx.QueryRow(ctx, "insert into reserves (order_id, user_id, service_id, amount, purchased, reserved_at) values ($1, $2, $3, $4, $5, $6) returning order_id",
+		orderId, userId, serviceId, amount, false, time.Now()).Scan(&reserveId)
 	if err != nil {
 		return err
 	}
@@ -168,17 +154,17 @@ func (p PgxDB) GetReserve(userId, serviceId, orderId uint64) (models.Reserve, er
 	}()
 
 	reserve := models.Reserve{
+		OrderID:   orderId,
 		UserID:    userId,
 		ServiceID: serviceId,
-		OrderID:   orderId,
 	}
 
 	// it would be better to select only amount and reservedAt but pgx gets error then
-	err = tx.QueryRow(ctx, "select * from reserves where user_id = $1 and service_id = $2 and order_id = $3",
-		reserve.UserID, reserve.ServiceID, reserve.OrderID).Scan(&reserve.UserID, &reserve.ServiceID, &reserve.OrderID,
+	err = tx.QueryRow(ctx, "select * from reserves where order_id = $1",
+		reserve.OrderID).Scan(&reserve.OrderID, &reserve.UserID, &reserve.ServiceID,
 		&reserve.Amount, &reserve.Purchased, &reserve.ReservedAt, &reserve.PurchasedAt)
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
-		err = fmt.Errorf("db: get reserve: money were not reserved for user %d, service %d and order %d", userId, serviceId, orderId)
+		err = fmt.Errorf("db: get reserve: money were not reserved order %d", orderId)
 		return models.Reserve{}, err
 	} else if err != nil {
 		return models.Reserve{}, err
@@ -197,13 +183,6 @@ func (p PgxDB) GetReserve(userId, serviceId, orderId uint64) (models.Reserve, er
 		return models.Reserve{}, err
 	}
 	reserve.Service = service
-
-	var order models.Order
-	err = tx.QueryRow(ctx, "select * from orders where id = $1;", orderId).Scan(&order.ID)
-	if err != nil {
-		return models.Reserve{}, err
-	}
-	reserve.Order = order
 
 	return reserve, err
 }
@@ -232,11 +211,11 @@ func (p PgxDB) Purchase(userId, serviceId, orderId uint64, amount float32) error
 		OrderID:   orderId,
 	}
 
-	err = tx.QueryRow(ctx, "select * from reserves where user_id = $1 and service_id = $2 and order_id = $3",
-		reserve.UserID, reserve.ServiceID, reserve.OrderID).Scan(&reserve.UserID, &reserve.ServiceID, &reserve.OrderID,
+	err = tx.QueryRow(ctx, "select * from reserves where order_id = $1 and user_id = $2 and service_id = $3",
+		reserve.OrderID, reserve.UserID, reserve.ServiceID).Scan(&reserve.OrderID, &reserve.UserID, &reserve.ServiceID,
 		&reserve.Amount, &reserve.Purchased, &reserve.ReservedAt, &reserve.PurchasedAt)
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
-		err = fmt.Errorf("db: get purchase: money were not reserved for user %d, service %d and order %d", userId, serviceId, orderId)
+		err = fmt.Errorf("db: get purchase: money were not reserved for order %d, user %d and service %d", userId, serviceId, orderId)
 		return err
 	} else if err != nil {
 		return err
@@ -252,8 +231,8 @@ func (p PgxDB) Purchase(userId, serviceId, orderId uint64, amount float32) error
 	reserve.Purchased = true
 
 	var updateId uint64
-	err = tx.QueryRow(ctx, "update reserves SET purchased = $1, purchased_at = $2 where user_id = $3 and service_id = $4 and order_id = $5 returning user_id",
-		reserve.Purchased, reserve.PurchasedAt, reserve.UserID, reserve.ServiceID, reserve.OrderID).Scan(&updateId)
+	err = tx.QueryRow(ctx, "update reserves SET purchased = $1, purchased_at = $2 where order_id = $3 returning order_id",
+		reserve.Purchased, reserve.PurchasedAt, reserve.OrderID).Scan(&updateId)
 	if err != nil {
 		return err
 	}

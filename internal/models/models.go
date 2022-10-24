@@ -12,17 +12,12 @@ type Service struct {
 	Name string `json:"name"`
 }
 
-type Order struct {
-	ID uint64 `json:"id" gorm:"primaryKey"`
-}
-
 type Reserve struct {
-	UserID      uint64     `json:"-" gorm:"primaryKey;autoIncrement:false"`
+	OrderID     uint64     `json:"order_id" gorm:"primaryKey;autoIncrement:false"`
+	UserID      uint64     `json:"-"`
 	User        User       `json:"user"`
-	ServiceID   uint64     `json:"-" gorm:"primaryKey;autoIncrement:false"`
+	ServiceID   uint64     `json:"-"`
 	Service     Service    `json:"service"`
-	OrderID     uint64     `json:"-" gorm:"primaryKey;autoIncrement:false"`
-	Order       Order      `json:"order"`
 	Amount      float32    `json:"amount"`
 	Purchased   bool       `json:"purchased"`
 	ReservedAt  time.Time  `json:"reserved_at"`
