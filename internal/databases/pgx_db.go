@@ -2,10 +2,11 @@ package databases
 
 import (
 	"balance/internal/models"
-
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -65,6 +66,14 @@ func (p PgxDB) AddBalance(id uint64, amount int64) error {
 		if err != nil {
 			return err
 		}
+
+		loc, _ := time.LoadLocation("Europe/Moscow")
+		date := time.Now().In(loc)
+		err = tx.QueryRow(ctx, "insert into operations (user_id, amount, done_at) values ($1, $2, $3) returning id", user.ID, user.Balance, date).Scan(&createdId)
+		if err != nil {
+			return err
+		}
+
 		return err
 	} else if err != nil {
 		return err
@@ -324,6 +333,20 @@ func (p PgxDB) Purchase(userId, serviceId, orderId uint64, amount int64) error {
 		return err
 	}
 
+	var service models.Service
+	err = tx.QueryRow(ctx, "select * from services where id = $1;", serviceId).Scan(&service.ID, &service.Name)
+	if err != nil {
+		return err
+	}
+	reserve.Service = service
+
+	var createdId uint64
+	err = tx.QueryRow(ctx, "insert into operations (user_id, service_id, service_name, amount, done_at) values ($1, $2, $3, $4, $5) returning id",
+		reserve.UserID, reserve.ServiceID, reserve.Service.Name, reserve.Amount*-1, purchasedAt).Scan(&createdId)
+	if err != nil {
+		return err
+	}
+
 	return err
 }
 
@@ -394,4 +417,102 @@ func (p PgxDB) DeleteService(id uint64) error {
 		return err
 	}
 	return nil
+}
+
+func (p PgxDB) CreateReport(year, month int) (string, error) {
+	ctx := context.TODO()
+
+	type parsedRow struct {
+		ServiceName string
+		Amount      int64
+	}
+
+	from := firstDayInMonth(year, month)
+	to := lastDayInMonth(year, month)
+	rows, _ := p.Query(ctx, "select * from operations where service_id is not null and done_at between $1 and $2 order by service_name",
+		from, to)
+	defer rows.Close()
+
+	var parsedRows []parsedRow
+	for rows.Next() {
+		var r parsedRow
+
+		var tempUint uint64 // we need this because if we select certain columns pgx returns error: "number of field descriptions must equal number of destinations, got 1 and 2"
+		var tempTime time.Time
+		err := rows.Scan(&tempUint, &tempUint, &tempUint, &r.ServiceName, &r.Amount, &tempTime)
+		if err != nil {
+			return "", err
+		}
+		parsedRows = append(parsedRows, r)
+	}
+
+	csvRows := make(map[string]int64)
+	for _, r := range parsedRows {
+		csvRows[r.ServiceName] += r.Amount
+	}
+
+	filePath := "./report/" + strconv.Itoa(year) + "/" + strconv.Itoa(month) + "/report.csv"
+	_, err := os.Stat(filePath)
+	if errors.Is(err, os.ErrNotExist) {
+		err = os.MkdirAll("./report/"+strconv.Itoa(year)+"/"+strconv.Itoa(month)+"/", os.ModePerm)
+		if err != nil {
+			return "", err
+		}
+	} else if err != nil {
+		return "", err
+	}
+
+	file, err := os.Create(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			// TODO: log this error
+		}
+	}()
+
+	w := csv.NewWriter(file)
+	defer w.Flush()
+
+	err = w.Write([]string{"service_name", "month_amount"})
+	if err != nil {
+		return "", err
+	}
+	for name, amount := range csvRows {
+		if err = w.Write([]string{name, fmt.Sprintf("%.2f", float32(amount)*-0.01)}); err != nil {
+			return "", err
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		return "", err
+	}
+
+	return filePath[1:], nil
+}
+
+func firstDayInMonth(year, month int) string {
+	return strconv.Itoa(year) + "-" + strconv.Itoa(month) + "-01"
+}
+
+func lastDayInMonth(year, month int) string {
+	switch month {
+	case 2:
+		if year%400 == 0 || (year%100 != 0 && year%4 == 0) {
+			return strconv.Itoa(year) + "-" + strconv.Itoa(month) + "-29"
+		}
+		return strconv.Itoa(year) + "-" + strconv.Itoa(month) + "-28"
+	case 4:
+		fallthrough
+	case 6:
+		fallthrough
+	case 9:
+		fallthrough
+	case 11:
+		return strconv.Itoa(year) + "-" + strconv.Itoa(month) + "-30"
+	default:
+		return strconv.Itoa(year) + "-" + strconv.Itoa(month) + "-31"
+	}
 }

@@ -3,6 +3,10 @@ package handlers
 import (
 	"balance/internal/databases"
 	"balance/internal/models"
+	"errors"
+	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	"math"
@@ -215,4 +219,48 @@ func (h *Handler) DeleteService(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusOK)
+}
+
+func (h *Handler) GetReport(c *fiber.Ctx) error {
+	payload := struct {
+		Year  int `params:"year"`
+		Month int `params:"month"`
+	}{}
+	if err := c.ParamsParser(&payload); err != nil {
+		return returnBadRequest(err, c)
+	}
+	if payload.Month < 1 || payload.Month > 12 {
+		return returnBadRequest(errors.New("handler: get report: wrong month input"), c)
+	}
+	filePath := "./report/" + strconv.Itoa(payload.Year) + "/" + strconv.Itoa(payload.Month) + "/report.csv"
+	if _, err := os.Stat(filePath); err == nil {
+		return c.SendFile(filePath, false)
+	} else if errors.Is(err, os.ErrNotExist) {
+		return returnBadRequest(fmt.Errorf("handler: get report: report from %d.%d doesn't exist", payload.Month, payload.Year), c)
+	} else {
+		return returnBadRequest(err, c)
+	}
+}
+
+func (h *Handler) CreateReport(c *fiber.Ctx) error {
+	payload := struct {
+		Year  int `params:"year"`
+		Month int `params:"month"`
+	}{}
+	if err := c.BodyParser(&payload); err != nil {
+		return returnBadRequest(err, c)
+	}
+	if payload.Month < 1 || payload.Month > 12 {
+		return returnBadRequest(errors.New("handler: get report: wrong month input"), c)
+	}
+
+	relativeLink, err := h.DB.CreateReport(payload.Year, payload.Month)
+	if err != nil {
+		return returnBadRequest(err, c)
+	}
+	link := c.BaseURL() + "/api" + relativeLink
+
+	return c.JSON(fiber.Map{
+		"report_link": link,
+	})
 }

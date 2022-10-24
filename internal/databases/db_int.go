@@ -13,4 +13,5 @@ type DBInt interface {
 	AddServices(services []models.Service) error
 	GetService(id uint64) (models.Service, error)
 	DeleteService(id uint64) error
+	CreateReport(year, month int) (string, error)
 }

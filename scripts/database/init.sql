@@ -16,8 +16,9 @@ CREATE TABLE IF NOT EXISTS users(
 -- Services
 CREATE TABLE IF NOT EXISTS services(
     id BIGSERIAL NOT NULL,
-    name text NOT NULL,
-    CONSTRAINT services_pkey PRIMARY KEY (id)
+    name varchar(255) NOT NULL UNIQUE,
+    CONSTRAINT services_pkey PRIMARY KEY (id),
+    CONSTRAINT services_unique_const_for_ops UNIQUE(id, name)
 ) TABLESPACE pg_default;
 
 -- Reserves
@@ -40,5 +41,24 @@ CREATE TABLE IF NOT EXISTS reserves (
         ON DELETE NO ACTION
 ) TABLESPACE pg_default;
 
+-- operations
+CREATE TABLE IF NOT EXISTS operations (
+    id BIGSERIAL NOT NULL,
+    user_id bigint NOT NULL,
+    service_id bigint,
+    service_name varchar(255),
+    amount bigint NOT NULL,
+    done_at timestamp,
+    CONSTRAINT operations_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_operations_service FOREIGN KEY (service_id, service_name)
+        REFERENCES services (id, name)
+        ON UPDATE CASCADE
+        ON DELETE NO ACTION,
+    CONSTRAINT fk_operations_user FOREIGN KEY (user_id)
+        REFERENCES users (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+) TABLESPACE pg_default;
+
 -- Indexes
-CREATE INDEX reports ON reserves (service_id, amount, purchased_at) where purchased = true;
+CREATE INDEX reports ON operations (service_name, amount) where service_id is not null;

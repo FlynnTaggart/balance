@@ -19,4 +19,6 @@ func InitializeRoutes(a *fiber.App, handler *handlers.Handler) {
 	route.Post("/services", handler.AddServices)
 	route.Get("/services", handler.GetService)
 	route.Delete("/services", handler.DeleteService)
+	route.Get("/report/:year/:month/report.csv", handler.GetReport)
+	route.Get("/report", handler.CreateReport)
 }
